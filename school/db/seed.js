@@ -8,9 +8,7 @@ const { dataSource } = require('./data-source')
 /** 清空：被 FK 指著的表最後刪（GRADE 先刪，CLASS / SUBJECT 最後刪）。
  *  不用 clear()（TRUNCATE 會被 FK 擋）、不用 delete({})（TypeORM 拒絕空條件）。 */
 async function clearAll() {
-  const ORDER = [
-    // TODO: 按「你的」FK 依賴順序填 entity name（先刪 Grade，再 Student，最後 Class / Subject）
-  ]
+  const ORDER = ['Grade', 'Student', 'Class', 'Subject']
   for (const name of ORDER) {
     if (dataSource.hasMetadata(name)) {
       await dataSource.createQueryBuilder().delete().from(name).execute()
@@ -31,6 +29,32 @@ async function main() {
   //      studentRepo.save({ name: '...', class: 班級物件 })
   //      gradeRepo.save({ score: 95, student: 學生物件, subject: 科目物件 })
   // ================================================================================
+  const classRepo = dataSource.getRepository('Class')
+  const subjectRepo = dataSource.getRepository('Subject')
+  const studentRepo = dataSource.getRepository('Student')
+  const gradeRepo = dataSource.getRepository('Grade')
+
+  const [classA, classB] = await classRepo.save([
+    { name: '一年甲班' },
+    { name: '一年乙班' },
+  ])
+
+  const [math, english] = await subjectRepo.save([
+    { name: '數學' },
+    { name: '英文' },
+  ])
+
+  const [student1, student2] = await studentRepo.save([
+    { name: '王小明', class: classA },
+    { name: '陳小美', class: classB },
+  ])
+
+  await gradeRepo.save([
+    { score: 88, student: student1, subject: math },
+    { score: 92, student: student1, subject: english },
+    { score: 75, student: student2, subject: math },
+    { score: 81, student: student2, subject: english },
+  ])
 
   console.log('🌱 seed 完成')
   await dataSource.destroy()
